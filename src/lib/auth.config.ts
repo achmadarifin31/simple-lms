@@ -13,6 +13,11 @@ import type { Role } from '@prisma/client';
 const PROTECTED_PREFIXES = ['/dashboard', '/courses', '/guru', '/settings', '/profile'];
 
 export const authConfig = {
+  // Set the secret explicitly so it works regardless of whether the host
+  // provides AUTH_SECRET (Auth.js v5 default) or NEXTAUTH_SECRET.
+  secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+  // Trust the deployment host (Vercel) for callback/redirect URLs.
+  trustHost: true,
   session: { strategy: 'jwt' },
   pages: { signIn: '/login' },
   providers: [], // real providers injected in auth.ts
