@@ -19,7 +19,7 @@ export async function GET() {
 
   return NextResponse.json({
     status: 'ok',
-    build: 'authfix-3',
+    build: 'authfix-4',
     time: new Date().toISOString(),
     env: {
       AUTH_SECRET: Boolean(process.env.AUTH_SECRET),
