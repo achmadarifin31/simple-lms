@@ -14,12 +14,19 @@ const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
  * connection URL to 5432 and drop pgbouncer-only params.
  */
 function resolveDbUrl(): string | undefined {
-  const url = process.env.DATABASE_URL;
-  if (!url) return undefined;
-  return url
-    .replace(':6543', ':5432')
-    .replace(/[?&]pgbouncer=true/i, '')
-    .replace(/[?&]connection_limit=\d+/i, '');
+  const raw = process.env.DATABASE_URL;
+  if (!raw) return undefined;
+  try {
+    const u = new URL(raw);
+    u.port = '5432'; // session pooler (reliable); 6543 is unreachable from Vercel
+    u.searchParams.delete('pgbouncer');
+    u.searchParams.delete('connection_limit');
+    u.searchParams.set('sslmode', 'require'); // Supabase requires TLS
+    u.searchParams.set('connect_timeout', '15'); // tolerate cross-region handshake
+    return u.toString();
+  } catch {
+    return raw;
+  }
 }
 
 export const prisma =

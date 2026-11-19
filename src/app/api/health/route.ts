@@ -67,21 +67,26 @@ export async function GET() {
 
   let dbOk = false;
   let dbError: string | null = null;
+  let dbErrName: string | null = null;
+  let dbErrCode: string | null = null;
   try {
     await prisma.user.count();
     dbOk = true;
   } catch (e) {
-    dbError = e instanceof Error ? e.message.slice(0, 500) : String(e);
+    const err = e as Error & { errorCode?: string; code?: string };
+    dbError = err?.message ?? String(e);
+    dbErrName = err?.name ?? null;
+    dbErrCode = err?.errorCode ?? err?.code ?? null;
   }
 
   return NextResponse.json({
     status: 'ok',
-    build: 'netprobe-2',
+    build: 'netprobe-3',
     time: new Date().toISOString(),
     target,
     cred: { dbUser, hasPassword, dbParams },
     dns: { v4: dns4, v6: dns6 },
     tcp,
-    db: { ok: dbOk, error: dbError },
+    db: { ok: dbOk, name: dbErrName, code: dbErrCode, error: dbError },
   });
 }
