@@ -3,16 +3,204 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Falls back to DATABASE_URL in dev; on Vercel set DIRECT_URL to the
+  // Supabase Session pooler (5432) while DATABASE_URL uses the Transaction
+  // pooler (6543, pgbouncer=true).
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  GURU
+  SISWA
+}
+
+enum QuestionType {
+  PG
+  ESSAY
 }
 
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
   name      String
+  password  String
+  role      Role     @default(SISWA)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  coursesTaught Course[]      @relation("CourseTeacher")
+  attempts      QuizAttempt[]
+  submissions   Submission[]
+
   @@map("users")
+}
+
+model Course {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  description String   @db.Text
+  capaian     String?  @db.Text
+  penilaian   String?  @db.Text
+  published   Boolean  @default(true)
+  teacherId   String
+  teacher     User     @relation("CourseTeacher", fields: [teacherId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  modules       Module[]
+  quizzes       Quiz[]
+  assignments   Assignment[]
+  announcements Announcement[]
+
+  @@map("courses")
+}
+
+model Announcement {
+  id        String   @id @default(cuid())
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title     String
+  content   String   @db.Text
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([courseId])
+  @@map("announcements")
+}
+
+model Module {
+  id        String   @id @default(cuid())
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title     String
+  content   String   @db.Text
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([courseId])
+  @@map("modules")
+}
+
+model Quiz {
+  id          String   @id @default(cuid())
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title       String
+  description String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  questions Question[]
+  attempts  QuizAttempt[]
+
+  @@index([courseId])
+  @@map("quizzes")
+}
+
+model Question {
+  id       String       @id @default(cuid())
+  quizId   String
+  quiz     Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  type     QuestionType
+  text     String       @db.Text
+  order    Int          @default(0)
+  points   Int          @default(10)
+
+  choices Choice[]
+  answers Answer[]
+
+  @@index([quizId])
+  @@map("questions")
+}
+
+model Choice {
+  id         String  @id @default(cuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  label      String // "A" | "B" | "C" | "D"
+  text       String  @db.Text
+  isCorrect  Boolean @default(false)
+
+  answers Answer[]
+
+  @@index([questionId])
+  @@map("choices")
+}
+
+model QuizAttempt {
+  id          String   @id @default(cuid())
+  quizId      String
+  quiz        Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  studentId   String
+  student     User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  score       Int      @default(0) // total poin PG yang benar + poin esai yang dinilai
+  maxScore    Int      @default(0)
+  submittedAt DateTime @default(now())
+
+  answers Answer[]
+
+  @@index([quizId])
+  @@index([studentId])
+  @@map("quiz_attempts")
+}
+
+model Answer {
+  id            String   @id @default(cuid())
+  attemptId     String
+  attempt       QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId    String
+  question      Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  choiceId      String?
+  choice        Choice?  @relation(fields: [choiceId], references: [id])
+  essayText     String?  @db.Text
+  isCorrect     Boolean?
+  awardedPoints Int      @default(0)
+  graded        Boolean  @default(false)
+
+  @@index([attemptId])
+  @@index([questionId])
+  @@map("answers")
+}
+
+model Assignment {
+  id           String    @id @default(cuid())
+  courseId     String
+  course       Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title        String
+  instructions String    @db.Text
+  allowedTypes String    @default("pdf,docx") // ekstensi diizinkan, dipisah koma
+  maxSizeMb    Int       @default(4)
+  deadline     DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  submissions Submission[]
+
+  @@index([courseId])
+  @@map("assignments")
+}
+
+model Submission {
+  id           String   @id @default(cuid())
+  assignmentId String
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  studentId    String
+  student      User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  fileName     String
+  fileMime     String
+  fileSize     Int
+  fileData     Bytes // disimpan sebagai bytea di Postgres
+  grade        Int?
+  feedback     String?  @db.Text
+  submittedAt  DateTime @default(now())
+
+  @@unique([assignmentId, studentId])
+  @@index([assignmentId])
+  @@index([studentId])
+  @@map("submissions")
 }

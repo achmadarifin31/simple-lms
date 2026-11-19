@@ -6,3 +6,6 @@ dist/
 .env*.local
 *.log
 .DS_Store
+soal.txt
+CLAUDE.md
+Laporan_Pengelolaan_LMS_Dwi_Atmanto.docx

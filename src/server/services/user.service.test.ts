@@ -7,17 +7,30 @@ import { createUserSchema } from '../types/user.types';
  */
 describe('createUserSchema', () => {
   it('accepts valid input', () => {
-    const result = createUserSchema.safeParse({ email: 'a@b.com', name: 'Alice' });
+    const result = createUserSchema.safeParse({
+      email: 'a@b.com',
+      name: 'Alice',
+      password: 'secret123',
+    });
     expect(result.success).toBe(true);
   });
 
   it('rejects invalid email', () => {
-    const result = createUserSchema.safeParse({ email: 'not-an-email', name: 'Alice' });
+    const result = createUserSchema.safeParse({
+      email: 'not-an-email',
+      name: 'Alice',
+      password: 'secret123',
+    });
     expect(result.success).toBe(false);
   });
 
   it('rejects empty name', () => {
-    const result = createUserSchema.safeParse({ email: 'a@b.com', name: '' });
+    const result = createUserSchema.safeParse({ email: 'a@b.com', name: '', password: 'secret123' });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects short password', () => {
+    const result = createUserSchema.safeParse({ email: 'a@b.com', name: 'Alice', password: '123' });
     expect(result.success).toBe(false);
   });
 });

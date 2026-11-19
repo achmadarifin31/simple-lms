@@ -6,6 +6,11 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        brand: {
+          DEFAULT: '#238B45',
+          light: '#41AB5D',
+          dark: '#1C7A3C',
+        },
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
         muted: {

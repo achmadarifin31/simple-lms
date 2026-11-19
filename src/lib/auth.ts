@@ -1,16 +1,17 @@
 import NextAuth from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
+import bcrypt from 'bcryptjs';
+import { authConfig } from './auth.config';
+import { userRepository } from '@/server/repositories/user.repository';
+import { loginSchema } from '@/server/types/auth.types';
 
 /**
- * Auth config SKELETON using NextAuth v5.
- * Replace the Credentials provider with your real auth strategy:
- * - Google/GitHub OAuth: add provider from next-auth/providers/*
- * - Credentials: implement the authorize() function against your DB
- *
- * `auth` is re-exported for use in Server Components and Route Handlers.
- * `handlers` is mounted at app/api/auth/[...nextauth]/route.ts.
+ * Full auth config (Node runtime only — safe to use Prisma + bcrypt here).
+ * Builds on the edge-safe `authConfig` and injects the real Credentials
+ * provider. `handlers` is mounted at app/api/auth/[...nextauth]/route.ts.
  */
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  ...authConfig,
   providers: [
     Credentials({
       credentials: {
@@ -18,20 +19,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: 'Password', type: 'password' },
       },
       authorize: async (credentials) => {
-        // TODO: validate credentials against your DB + verify password hash
-        // Return null to reject, return user object to accept
-        if (!credentials?.email) return null;
-        return { id: 'user-id', email: String(credentials.email), name: 'User' };
+        const parsed = loginSchema.safeParse(credentials);
+        if (!parsed.success) return null;
+
+        const { email, password } = parsed.data;
+        const user = await userRepository.findByEmail(email);
+        if (!user) return null;
+
+        const valid = await bcrypt.compare(password, user.password);
+        if (!valid) return null;
+
+        return { id: user.id, email: user.email, name: user.name, role: user.role };
       },
     }),
   ],
-  pages: {
-    signIn: '/login',
-  },
-  callbacks: {
-    session: ({ session, token }) => ({
-      ...session,
-      user: { ...session.user, id: token.sub ?? '' },
-    }),
-  },
 });

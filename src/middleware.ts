@@ -1,27 +1,17 @@
-import { auth } from '@/lib/auth';
-import { NextResponse } from 'next/server';
+import NextAuth from 'next-auth';
+import { authConfig } from '@/lib/auth.config';
 
 /**
- * MIDDLEWARE — one file for all routes (Next.js constraint).
- * Unlike Hono where middleware is per-route, here it runs globally
- * and you filter by path. Keep it lightweight: auth check + redirect only.
- * Heavy logic belongs in Route Handlers or services, not here.
+ * MIDDLEWARE — one file for all routes (Next.js constraint), Edge runtime.
+ * Uses the edge-safe `authConfig` (no Prisma/bcrypt) so it bundles for Edge.
+ * The `authorized` callback in authConfig decides redirects; keep this thin.
  */
-export default auth((req) => {
-  const { pathname } = req.nextUrl;
-  const isAuthenticated = Boolean(req.auth);
+export const { auth: middleware } = NextAuth(authConfig);
 
-  const protectedPaths = ['/dashboard', '/settings', '/profile'];
-  const isProtected = protectedPaths.some((p) => pathname.startsWith(p));
-
-  if (isProtected && !isAuthenticated) {
-    return NextResponse.redirect(new URL('/login', req.url));
-  }
-
-  return NextResponse.next();
-});
+export default middleware;
 
 export const config = {
-  // Skip static files and Next internals — only run on real routes
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  // Skip Next internals, static files, and API routes (those guard themselves
+  // via requireAuth/requireRole in their Route Handlers).
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
 };

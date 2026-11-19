@@ -1,3 +1,4 @@
+import bcrypt from 'bcryptjs';
 import { userRepository } from '../repositories/user.repository';
 import { ConflictError, NotFoundError } from '../lib/errors';
 import type { CreateUserInput, ListUsersQuery } from '../types/user.types';
@@ -25,7 +26,13 @@ export const userService = {
   async create(input: CreateUserInput) {
     const existing = await userRepository.findByEmail(input.email);
     if (existing) throw new ConflictError('Email already registered');
-    return userRepository.create({ email: input.email, name: input.name });
+    const password = await bcrypt.hash(input.password, 10);
+    return userRepository.create({
+      email: input.email,
+      name: input.name,
+      password,
+      role: input.role,
+    });
   },
 
   async delete(id: string) {
