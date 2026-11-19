@@ -38,6 +38,19 @@ export async function GET() {
   let dns6: string[] | string = 'n/a';
   let tcp = 'n/a';
 
+  // Parsed credentials shape of the normalized DATABASE_URL (NO password shown).
+  let dbUser: string | null = null;
+  let hasPassword = false;
+  let dbParams = '';
+  try {
+    const u = new URL((process.env.DATABASE_URL ?? '').replace(':6543', ':5432'));
+    dbUser = decodeURIComponent(u.username);
+    hasPassword = Boolean(u.password);
+    dbParams = u.search;
+  } catch {
+    /* ignore */
+  }
+
   if (target) {
     try {
       dns4 = (await dns.resolve4(target.host)).slice(0, 4);
@@ -63,9 +76,10 @@ export async function GET() {
 
   return NextResponse.json({
     status: 'ok',
-    build: 'netprobe-1',
+    build: 'netprobe-2',
     time: new Date().toISOString(),
     target,
+    cred: { dbUser, hasPassword, dbParams },
     dns: { v4: dns4, v6: dns6 },
     tcp,
     db: { ok: dbOk, error: dbError },
